@@ -1,15 +1,24 @@
 require('dotenv').config();
-const { Client, Intents } = require('discord.js');
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
+const client = new Client({
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.MessageContent,
+		GatewayIntentBits.GuildMembers,
+		GatewayIntentBits.GuildMessageReactions
+	],
+	partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+});
 // Invite Link:
 
 // Dependencies
 const fs = require('fs');
-const cron = require('cron');
 
 // Files
 const users_txt = './users.txt';
+const roles_txt = './roles.txt';
 
 
 
@@ -26,6 +35,32 @@ const prefix = process.env.PREFIX;
 const server_id = process.env.SERVER_ID;
 const admin_rn = process.env.ADMIN_RN;
 
+
+
+
+roles = []
+fs.readFile(roles_txt, 'utf8', function(err, data) {
+	if (err) throw err;
+
+	data = data.split(/\r?\n/);
+
+	data.forEach(role => {
+		console.log(role)
+		roles.push(role)
+	});
+});
+
+people_to_yeet_role_from = []
+fs.readFile(users_txt, 'utf8', function(err, data) {
+	if (err) throw err;
+
+	data = data.split(/\r?\n/);
+
+	data.forEach(user => {
+		console.log(user)
+		people_to_yeet_role_from.push(user)
+	});
+});
 
 
 
@@ -52,56 +87,29 @@ client.on('messageCreate', msg => {
 	// If this message isn't a command, or the user is a bot, or this is a DM: leave
 	if (!msg.content.startsWith(prefix) || msg.author.bot || msg.channel.type == 'dm') return;
 
-	// example-command
 	// Only Admins can do this
 	if (msg.content.startsWith(prefix + 'role-remover') && isAdmin) {
-		roles = []
-		// Read in roles
-		fs.readFile(roles_txt, 'utf8', function(err, data) {
-			if (err) throw err;
-
-			data = data.split(/\r?\n/);
-
-			data.forEach(role => {
-				roles.push(role)
-			});
-		});
-
-
-		people_to_yeet_role_from = []
-		fs.readFile(users_txt, 'utf8', function(err, data) {
-			if (err) throw err;
-
-			data = data.split(/\r?\n/);
-
-			data.forEach(user => {
-				people_to_yeet_role_from.push(user)
-			});
-		});
-
+		// Loop through all of the people we want to remove roles from
 		people_to_yeet_role_from.forEach(person => {
-			// Get the Guild and store it under the variable "guild"
-			const guild = client.guilds.cache.get(server_id);
-
-			roles.forEach(rolex => {
-				if (user.roles.cache.some(role => role.name === rolex)) {
-					// Get the role object
-					const role_object = guild.roles.cache.find(roles => roles.name === rolex);
-					
-
-					// Grab the member we are looking for and remove their role
-					guild.members.fetch(person)
-					.then((user) => {
-						// Remove the person's role
-						user.roles.remove(role_object).catch(() => {
-							console.log('Role could not be removed');
+			// Grab all members in the guild
+			guild.members.fetch()
+			.then((users) => {
+				users.forEach(user => {
+					if (`${user.user.username}#${user.user.discriminator}` === person) {
+						roles.forEach(rolex => {
+							const role_object = guild.roles.cache.find(roles => roles.name === rolex);
+							
+							if (user._roles.includes(role_object.id)) {
+								// Remove the person's role
+								user.roles.remove(role_object).catch(() => {
+									console.log('Role could not be removed');
+								})
+							}
 						})
-					});
-				}
-			})
-			
-		
-			
+						console.log(`Finished removing roles for ${person}`)
+					}
+				})
+			});
 		});
 	}
 });
@@ -117,4 +125,4 @@ client.on('messageCreate', msg => {
 // TODOs
 
 // Dependencies
-// discordjs cron dotenv discord-anti-spam
+// discord.js dotenv
